@@ -1,4 +1,5 @@
 import time
+import json
 import click
 import numpy
 import pandas
@@ -9,7 +10,7 @@ import tensorflow
 import dataset_loader
 
 
-def plot_score(data: dict[str, dict[str, list[float]]], directory: pathlib.Path) -> None:
+def save_score(data: dict[str, dict[str, list[float]]], directory: pathlib.Path) -> None:
 
     UNIT_SIZE = 8.0
     FIGURE_SIZE = 2 * UNIT_SIZE, 2 * UNIT_SIZE
@@ -30,8 +31,11 @@ def plot_score(data: dict[str, dict[str, list[float]]], directory: pathlib.Path)
     figure.tight_layout()
     figure.savefig(str(directory / "score.png"))
 
+    with open(str(directory / "score.json"), mode="w") as file:
+        json.dump(data, file, indent=4)
 
-def plot_benchmark(data: dict[str, dict[str, str]], directory: pathlib.Path) -> None:
+
+def save_benchmark(data: dict[str, dict[str, str]], directory: pathlib.Path) -> None:
 
     UNIT_SIZE = 8.0
     FIGURE_SIZE = 2 * UNIT_SIZE, 1 * UNIT_SIZE
@@ -45,6 +49,9 @@ def plot_benchmark(data: dict[str, dict[str, str]], directory: pathlib.Path) -> 
 
     figure.tight_layout()
     figure.savefig(str(directory / "benchmark.png"))
+
+    with open(str(directory / "benchmark.json"), mode="w") as file:
+        json.dump(data, file, indent=4)
 
 
 def save_models(data: dict[str, tensorflow.keras.Model], directory: pathlib.Path) -> None:
@@ -144,8 +151,8 @@ if __name__ == "__main__":
             time_predict_dataset = time_predict_end - time_predict_beg
             time_predict_image = time_predict_dataset / length_test
 
-            loss = tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_test, yp_test).numpy()
-            metric = tensorflow.keras.metrics.SparseCategoricalAccuracy()(y_test, yp_test).numpy()
+            loss = float(tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_test, yp_test))
+            metric = float(tensorflow.keras.metrics.SparseCategoricalAccuracy()(y_test, yp_test))
 
             if len(data_score[model.name]["Loss"]) == 0 or min(data_score[model.name]["Loss"]) > loss:
 
@@ -166,6 +173,6 @@ if __name__ == "__main__":
             data_score[model.name]["Metric"].append(metric)
 
 
-    plot_score(data_score, results_directory)
-    plot_benchmark(data_benchmark, results_directory)
+    save_score(data_score, results_directory)
+    save_benchmark(data_benchmark, results_directory)
     save_models(data_models, results_directory)

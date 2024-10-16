@@ -71,7 +71,7 @@ class WeightedEnsembleModel:
             model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=tensorflow.keras.callbacks.EarlyStopping(patience=2, restore_best_weights=True))
 
         losses = numpy.array([
-            tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_val, model.predict(x=x_val, verbose=0)).numpy()
+            float(tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_val, model.predict(x=x_val, verbose=0)))
             for model in self.models
         ])
 
@@ -114,10 +114,11 @@ class WeightedEnsembleModel:
             time_beg = time.perf_counter()
             yp_test = model.predict(x=x_test, verbose=0)
             time_end = time.perf_counter()
-            time_cur = (time_end - time_beg) / length
-            loss = tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_test, yp_test).numpy()
-            metric = tensorflow.keras.metrics.SparseCategoricalAccuracy()(y_test, yp_test).numpy()
-            data[model.name] = {"Weight": f"{weight:.4f}", "Time Per Image": f"{time_cur:.4f}", "Loss": f"{loss:.4f}", "Metric": f"{metric:.4f}"}
+            time_dataset = time_end - time_beg
+            time_image = time_dataset / length
+            loss = float(tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_test, yp_test))
+            metric = float(tensorflow.keras.metrics.SparseCategoricalAccuracy()(y_test, yp_test))
+            data[model.name] = {"Weight": f"{weight:.4f}", "Predict Time (Dataset)": f"{time_dataset:.4f}", "Predict Time (Image)": f"{time_image:.4f}", "Loss": f"{loss:.4f}", "Metric": f"{metric:.4f}"}
         dataframe = pandas.DataFrame.from_dict(data).transpose()
         axes.table(cellText=dataframe.values, rowLabels=dataframe.index, colLabels=dataframe.columns, cellLoc="center", rowLoc="center", colLoc="center", loc="center")
         axes.axis("off")
@@ -128,7 +129,7 @@ class WeightedEnsembleModel:
 
     def confusion_matrix(self, x_test: dataset_loader.DatasetLoader, directory: pathlib.Path) -> None:
 
-        UNIT_SIZE = 8.0
+        UNIT_SIZE = 4.0
         ROWS, COLS = self.num_models + 1, 2
         FIGURE_SIZE = COLS * UNIT_SIZE, ROWS * UNIT_SIZE
 
