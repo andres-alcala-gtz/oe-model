@@ -98,12 +98,8 @@ if __name__ == "__main__":
         return model
 
     backbones = {
-        "InceptionResNetV2": tensorflow.keras.applications.InceptionResNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
         "InceptionV3": tensorflow.keras.applications.InceptionV3(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
-        "MobileNet": tensorflow.keras.applications.MobileNet(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
         "MobileNetV2": tensorflow.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
-        "ResNet101V2": tensorflow.keras.applications.ResNet101V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
-        "ResNet152V2": tensorflow.keras.applications.ResNet152V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
         "ResNet50V2": tensorflow.keras.applications.ResNet50V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
     }
 
@@ -121,7 +117,7 @@ if __name__ == "__main__":
         data_models[name] = None
 
 
-    for index in range(10):
+    for index in range(5):
 
         print(f"\nROUND {index + 1}")
 
