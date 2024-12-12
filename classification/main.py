@@ -4,7 +4,7 @@ import gradio
 import pathlib
 
 import dataset_loader
-import weighted_ensemble_model
+import optimized_ensembled_model
 
 
 if __name__ == "__main__":
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     dataset_directory = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
     dataset_directory = pathlib.Path(dataset_directory)
-    results_directory = pathlib.Path(f"{dataset_directory} - Results")
+    results_directory = pathlib.Path(f"{dataset_directory} - Model")
 
 
     if not results_directory.exists():
@@ -26,24 +26,22 @@ if __name__ == "__main__":
 
         dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
 
-        wem = weighted_ensemble_model.WeightedEnsembleModel(title, labels, IMAGE_SIZE)
-        wem.fit(dl_train, dl_val)
-        wem.benchmark(dl_test, results_directory)
-        wem.confusion_matrix(dl_test, results_directory)
-        wem.save(results_directory)
+        model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
+        model.fit_report(results_directory, dl_train, dl_val)
+        model.save(results_directory)
 
     else:
 
-        wem = weighted_ensemble_model.WeightedEnsembleModel.load(results_directory)
+        model = optimized_ensembled_model.OptimizedEnsembledModel.load(results_directory)
 
 
-    title = wem.title
-    labels = wem.labels
+    title = model.title
+    labels = model.labels
 
     def predict(image: numpy.ndarray[int]) -> dict[str, float]:
         if image is not None:
             x = numpy.expand_dims(image, axis=0)
-            y = wem.predict(x)[0]
+            y = model.predict(x)[0]
             return {label: probability for label, probability in zip(labels, y)}
         else:
             return {"", 0.0}

@@ -1,17 +1,15 @@
 import time
 import json
 import numpy
-import scipy
 import pandas
 import pathlib
-import matplotlib
 import tensorflow
-import sklearn.metrics
+import scipy.optimize
 
 import dataset_loader
 
 
-class WeightedEnsembleModel:
+class OptimizedEnsembledModel:
 
 
     def __init__(self, title: str, labels: list[str], image_size: int) -> None:
@@ -49,13 +47,13 @@ class WeightedEnsembleModel:
             for name, backbone in backbones.items()
         ]
 
-        self.name = "WeightedEnsembleModel"
+        self.name = "OEModel"
         self.title = title
         self.labels = labels
         self.image_size = image_size
 
         self.num_models = len(self.models)
-        self.weights = numpy.zeros(self.num_models)
+        self.weights = numpy.ones(self.num_models) / self.num_models
 
 
     def fit(self, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
@@ -76,7 +74,7 @@ class WeightedEnsembleModel:
         ])
 
         print("\nOPTIMIZING")
-        objective_function = lambda index: numpy.dot(losses, hyperplane[int(index[0])])
+        objective_function = lambda index: numpy.dot(losses, hyperplane[int(index[0])]) / self.num_models
         optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=[(0, len(hyperplane) - 1)], strategy="rand1bin", disp=True)
         self.weights = hyperplane[int(optimization.x[0])]
 
@@ -93,72 +91,38 @@ class WeightedEnsembleModel:
             for weight, yp in zip(self.weights, yp_raw)
         ]
 
-        yp_ensemble = numpy.sum(yp_weighted, axis=0)
+        yp_ensembled = numpy.sum(yp_weighted, axis=0)
 
-        return yp_ensemble
-
-
-    def benchmark(self, x_test: dataset_loader.DatasetLoader, directory: pathlib.Path) -> None:
-
-        UNIT_SIZE = 8.0
-        FIGURE_SIZE = 2 * UNIT_SIZE, 1 * UNIT_SIZE
-
-        length = x_test.length()
-        y_test = x_test.y()
-        data = {}
-
-        figure, axes = matplotlib.pyplot.subplots(nrows=1, ncols=1, figsize=FIGURE_SIZE)
-
-        figure.suptitle("Benchmark")
-        for weight, model in zip([numpy.sum(self.weights)] + list(self.weights), [self] + self.models):
-            time_beg = time.perf_counter()
-            yp_test = model.predict(x=x_test, verbose=0)
-            time_end = time.perf_counter()
-            time_dataset = time_end - time_beg
-            time_image = time_dataset / length
-            loss = float(tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_test, yp_test))
-            metric = float(tensorflow.keras.metrics.SparseCategoricalAccuracy()(y_test, yp_test))
-            data[model.name] = {"Weight": f"{weight:.4f}", "Predict Time (Dataset)": f"{time_dataset:.4f}", "Predict Time (Image)": f"{time_image:.4f}", "Loss": f"{loss:.4f}", "Metric": f"{metric:.4f}"}
-        dataframe = pandas.DataFrame.from_dict(data).transpose()
-        axes.table(cellText=dataframe.values, rowLabels=dataframe.index, colLabels=dataframe.columns, cellLoc="center", rowLoc="center", colLoc="center", loc="center")
-        axes.axis("off")
-
-        figure.tight_layout()
-        figure.savefig(str(directory / "benchmark.png"))
+        return yp_ensembled
 
 
-    def confusion_matrix(self, x_test: dataset_loader.DatasetLoader, directory: pathlib.Path) -> None:
+    def fit_report(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
-        UNIT_SIZE = 4.0
-        ROWS, COLS = self.num_models + 1, 2
-        FIGURE_SIZE = COLS * UNIT_SIZE, ROWS * UNIT_SIZE
+        info = pandas.DataFrame(columns=["Identifier", "Backbone", "Fit Time", "Train Samples", "Validation Samples"])
 
-        y_test = x_test.y()
+        length_train = x_train.length()
+        length_val = x_val.length()
 
-        figure, axes = matplotlib.pyplot.subplots(nrows=ROWS, ncols=COLS, figsize=FIGURE_SIZE)
+        time_fit_beg = time.perf_counter()
+        self.fit(x_train, x_val)
+        time_fit_end = time.perf_counter()
+        time_fit_dataset = time_fit_end - time_fit_beg
 
-        figure.suptitle("Confusion Matrix")
-        for index, model in enumerate([self] + self.models):
-            yp_test = model.predict(x=x_test, verbose=0).argmax(axis=1)
-            axes[index, 0].set_title(f"{model.name}: Count")
-            axes[index, 1].set_title(f"{model.name}: Percentage")
-            sklearn.metrics.ConfusionMatrixDisplay.from_predictions(y_test, yp_test, normalize=None, values_format=None, cmap="Blues", colorbar=False, ax=axes[index, 0])
-            sklearn.metrics.ConfusionMatrixDisplay.from_predictions(y_test, yp_test, normalize="true", values_format=".0%", cmap="Blues", colorbar=False, ax=axes[index, 1])
-
-        figure.tight_layout()
-        figure.savefig(str(directory / "confusion_matrix.png"))
+        info.loc[len(info)] = ["0", self.name, time_fit_dataset, length_train, length_val]
+        info.to_csv(str(directory / "info.csv"), index=False)
 
 
     def save(self, directory: pathlib.Path) -> None:
 
-        paths = {}
+        names = []
         for model in self.models:
-            path = str(directory / f"{model.name}.keras")
+            name = f"{model.name}.keras"
+            path = str(directory / name)
             model.save(path)
-            paths[model.name] = path
+            names.append(name)
 
         data = {
-            "models": paths,
+            "models": names,
             "name": self.name,
             "title": self.title,
             "labels": self.labels,
@@ -172,20 +136,21 @@ class WeightedEnsembleModel:
 
 
     @classmethod
-    def load(cls, directory: pathlib.Path) -> "WeightedEnsembleModel":
+    def load(cls, directory: pathlib.Path) -> "OptimizedEnsembledModel":
 
         with open(str(directory / "data.json"), mode="r") as file:
             data = json.load(file)
 
         models = []
-        for path in data["models"].values():
+        for name in data["models"]:
+            path = str(directory / name)
             model = tensorflow.keras.models.load_model(path)
             models.append(model)
 
-        wem = cls(data["title"], data["labels"], data["image_size"])
-        wem.models = models
-        wem.name = data["name"]
-        wem.num_models = data["num_models"]
-        wem.weights = numpy.array(data["weights"])
+        oem = cls(data["title"], data["labels"], data["image_size"])
+        oem.models = models
+        oem.name = data["name"]
+        oem.num_models = data["num_models"]
+        oem.weights = numpy.array(data["weights"])
 
-        return wem
+        return oem
