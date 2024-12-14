@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
         results_directory.mkdir()
 
-        dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
         model.fit_report(results_directory, dl_train, dl_val)

@@ -1,7 +1,7 @@
-import PIL
 import math
 import numpy
 import pathlib
+import PIL.Image
 import tensorflow
 import sklearn.model_selection
 
@@ -71,7 +71,7 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
 
 
     @classmethod
-    def from_directory(cls, directory: pathlib.Path, image_size: int, batch_size: int) -> tuple["DatasetLoader", "DatasetLoader", "DatasetLoader", str, list[str]]:
+    def from_directory(cls, directory: pathlib.Path, image_size: int, batch_size: int) -> tuple["DatasetLoader", "DatasetLoader", str, list[str]]:
 
         xl_all = []
         yl_all = []
@@ -81,14 +81,12 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
                 xl_all.append(location)
                 yl_all.append(location.parent.stem)
 
-        xl_train, xl_temp, yl_train, yl_temp = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.80)
-        xl_test, xl_val, yl_test, yl_val = sklearn.model_selection.train_test_split(xl_temp, yl_temp, train_size=0.50)
+        xl_train, xl_test, yl_train, yl_test = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.80)
 
         title = directory.stem
         labels = list(set(yl_all))
 
         dl_train = cls(xl_train, yl_train, labels, image_size, batch_size)
         dl_test = cls(xl_test, yl_test, labels, image_size, batch_size)
-        dl_val = cls(xl_val, yl_val, labels, image_size, batch_size)
 
-        return dl_train, dl_test, dl_val, title, labels
+        return dl_train, dl_test, title, labels
