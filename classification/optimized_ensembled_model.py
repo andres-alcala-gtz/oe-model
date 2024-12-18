@@ -6,6 +6,7 @@ import pathlib
 import tensorflow
 import scipy.optimize
 
+import environment
 import dataset_loader
 
 
@@ -14,37 +15,9 @@ class OptimizedEnsembledModel:
 
     def __init__(self, title: str, labels: list[str], image_size: int) -> None:
 
-        def wrapper(name: str, backbone: tensorflow.keras.Model) -> tensorflow.keras.Model:
-            model = tensorflow.keras.Sequential(name=name, layers=[
-                tensorflow.keras.layers.InputLayer(input_shape=(None, None, 3)),
-                tensorflow.keras.layers.Resizing(height=image_size, width=image_size),
-                tensorflow.keras.layers.Rescaling(scale=1.0 / 127.5, offset=-1.0),
-                backbone,
-                tensorflow.keras.layers.Dense(units=512, activation="relu"),
-                tensorflow.keras.layers.Dense(units=512, activation="relu"),
-                tensorflow.keras.layers.Dense(units=512, activation="relu"),
-                tensorflow.keras.layers.Dense(units=512, activation="relu"),
-                tensorflow.keras.layers.Dense(units=len(labels), activation="softmax"),
-            ])
-            model.compile(
-                optimizer="adam",
-                loss=tensorflow.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=tensorflow.keras.metrics.SparseCategoricalAccuracy(),
-            )
-            return model
-
-        backbones = {
-            "InceptionV3": tensorflow.keras.applications.InceptionV3(input_shape=(image_size, image_size, 3), include_top=False, weights="imagenet", pooling="max"),
-            "MobileNetV2": tensorflow.keras.applications.MobileNetV2(input_shape=(image_size, image_size, 3), include_top=False, weights="imagenet", pooling="max"),
-            "ResNet50V2": tensorflow.keras.applications.ResNet50V2(input_shape=(image_size, image_size, 3), include_top=False, weights="imagenet", pooling="max"),
-        }
-
-        for backbone in backbones.values():
-            backbone.trainable = False
-
         self.models = [
-            wrapper(name, backbone)
-            for name, backbone in backbones.items()
+            constructor(image_size, len(labels))
+            for constructor in environment.MODELS
         ]
 
         self.name = "OEModel"

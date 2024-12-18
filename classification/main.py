@@ -3,6 +3,7 @@ import numpy
 import gradio
 import pathlib
 
+import environment
 import dataset_loader
 import optimized_ensembled_model
 
@@ -10,29 +11,29 @@ import optimized_ensembled_model
 if __name__ == "__main__":
 
 
-    IMAGE_SIZE = 512
-    BATCH_SIZE = 8
+    IMAGE_SIZE = environment.IMAGE_SIZE
+    BATCH_SIZE = environment.BATCH_SIZE
 
 
-    dataset_directory = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+    directory_dataset = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
-    dataset_directory = pathlib.Path(dataset_directory)
-    results_directory = pathlib.Path(f"{dataset_directory} - Model")
+    directory_dataset = pathlib.Path(directory_dataset)
+    directory_results = pathlib.Path(f"{directory_dataset} - Model")
 
 
-    if not results_directory.exists():
+    if not directory_results.exists():
 
-        results_directory.mkdir()
+        directory_results.mkdir()
 
-        dl_train, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
-        model.fit_report(results_directory, dl_train, dl_val)
-        model.save(results_directory)
+        model.fit_report(directory_results, dl_train, dl_val)
+        model.save(directory_results)
 
     else:
 
-        model = optimized_ensembled_model.OptimizedEnsembledModel.load(results_directory)
+        model = optimized_ensembled_model.OptimizedEnsembledModel.load(directory_results)
 
 
     title = model.title

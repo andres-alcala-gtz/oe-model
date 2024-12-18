@@ -6,84 +6,61 @@ import pathlib
 import tensorflow
 import collections
 
+import environment
 import dataset_loader
 
 
 if __name__ == "__main__":
 
 
-    IMAGE_SIZE = 512
-    BATCH_SIZE = 8
+    IMAGE_SIZE = environment.IMAGE_SIZE
+    BATCH_SIZE = environment.BATCH_SIZE
 
 
-    dataset_directory = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+    directory_dataset = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
-    dataset_directory = pathlib.Path(dataset_directory)
-    results_directory = pathlib.Path(f"{dataset_directory} - Control")
+    directory_dataset = pathlib.Path(directory_dataset)
+    directory_results = pathlib.Path(f"{directory_dataset} - Control")
 
 
-    if not results_directory.exists():
+    if not directory_results.exists():
 
-        results_directory.mkdir()
+        directory_results.mkdir()
 
         info = pandas.DataFrame(columns=["Identifier", "Backbone", "Fit Time", "Train Samples", "Validation Samples"])
 
     else:
 
-        info = pandas.read_csv(str(results_directory / "info.csv"))
+        info = pandas.read_csv(str(directory_results / "info.csv"))
 
 
-    _, _, _, labels = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
+    _, _, _, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
 
-    def wrapper(name: str, backbone: tensorflow.keras.Model) -> tensorflow.keras.Model:
-        model = tensorflow.keras.Sequential(name=name, layers=[
-            tensorflow.keras.layers.InputLayer(input_shape=(None, None, 3)),
-            tensorflow.keras.layers.Resizing(height=IMAGE_SIZE, width=IMAGE_SIZE),
-            tensorflow.keras.layers.Rescaling(scale=1.0 / 127.5, offset=-1.0),
-            backbone,
-            tensorflow.keras.layers.Dense(units=512, activation="relu"),
-            tensorflow.keras.layers.Dense(units=512, activation="relu"),
-            tensorflow.keras.layers.Dense(units=512, activation="relu"),
-            tensorflow.keras.layers.Dense(units=512, activation="relu"),
-            tensorflow.keras.layers.Dense(units=len(labels), activation="softmax"),
-        ])
-        model.compile(
-            optimizer="adam",
-            loss=tensorflow.keras.losses.SparseCategoricalCrossentropy(),
-            metrics=tensorflow.keras.metrics.SparseCategoricalAccuracy(),
-        )
-        return model
-
-    backbones = {
-        "InceptionV3": tensorflow.keras.applications.InceptionV3(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
-        "MobileNetV2": tensorflow.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
-        "ResNet50V2": tensorflow.keras.applications.ResNet50V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False, weights="imagenet", pooling="max"),
+    constructors = {
+        constructor(IMAGE_SIZE, len(labels)).name: constructor
+        for constructor in environment.MODELS
     }
-
-    for backbone in backbones.values():
-        backbone.trainable = False
 
 
     while True:
 
         index = len(info)
 
-        counter = collections.Counter({name: 0 for name in backbones.keys()})
+        counter = collections.Counter({name: 0 for name in constructors.keys()})
         counter.update(info["Backbone"])
 
         print(f"\nMODEL {index + 1}")
 
-        dl_train, dl_val, _, _ = dataset_loader.DatasetLoader.from_directory(dataset_directory, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_val, _, _ = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
         length_train = dl_train.length()
         length_val = dl_val.length()
 
         identifier = str(uuid.uuid4())
         name = min(counter, key=counter.get)
-        backbone = backbones[name]
 
-        model = wrapper(name, backbone)
+        model = constructors[name](IMAGE_SIZE, len(labels))
 
         print(f"{model.name.upper()}: FITTING")
         time_fit_beg = time.perf_counter()
@@ -91,7 +68,7 @@ if __name__ == "__main__":
         time_fit_end = time.perf_counter()
         time_fit_dataset = time_fit_end - time_fit_beg
 
-        model.save(str(results_directory / f"{identifier}.keras"))
+        model.save(str(directory_results / f"{identifier}.keras"))
 
         info.loc[index] = [identifier, name, time_fit_dataset, length_train, length_val]
-        info.to_csv(str(results_directory / "info.csv"), index=False)
+        info.to_csv(str(directory_results / "info.csv"), index=False)
