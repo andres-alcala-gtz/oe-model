@@ -7,6 +7,7 @@ import tensorflow
 import collections
 
 import environment
+import architecture
 import dataset_loader
 
 
@@ -15,52 +16,48 @@ if __name__ == "__main__":
 
     IMAGE_SIZE = environment.IMAGE_SIZE
     BATCH_SIZE = environment.BATCH_SIZE
+    FIGURE_SIZE = environment.FIGURE_SIZE
 
 
-    directory_dataset = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+    directory_template = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
-    directory_dataset = pathlib.Path(directory_dataset)
-    directory_results = pathlib.Path(f"{directory_dataset} - Control")
+    directory_dataset = pathlib.Path(directory_template)
+    directory_results = pathlib.Path(f"{directory_template} - Control")
 
 
     if not directory_results.exists():
 
         directory_results.mkdir()
 
-        info = pandas.DataFrame(columns=["Identifier", "Backbone", "Fit Time", "Train Samples", "Validation Samples"])
+        info = pandas.DataFrame(columns=["Backbone"])
 
     else:
 
-        info = pandas.read_csv(str(directory_results / "info.csv"))
+        info = pandas.read_excel(str(directory_results / "info.xlsx"))
 
 
-    _, _, _, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
+    _, _, _, _, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
 
     constructors = {
-        constructor(IMAGE_SIZE, len(labels)).name: constructor
-        for constructor in environment.MODELS
+        constructor.__name__: constructor
+        for constructor in architecture.MODELS
     }
 
 
     while True:
 
-        index = len(info)
-
-        counter = collections.Counter({name: 0 for name in constructors.keys()})
+        counter = collections.Counter({backbone: 0 for backbone in constructors.keys()})
         counter.update(info["Backbone"])
 
-        print(f"\nMODEL {index + 1}")
+        print(f"\nMODEL {len(info) + 1}")
 
-        dl_train, dl_val, _, _ = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_test, dl_val, _, _ = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
-        length_train = dl_train.length()
-        length_val = dl_val.length()
-
+        backbone = min(counter, key=counter.get)
         identifier = str(uuid.uuid4())
-        name = min(counter, key=counter.get)
 
-        model = constructors[name](IMAGE_SIZE, len(labels))
+        model = constructors[backbone](IMAGE_SIZE, len(labels))
 
         print(f"{model.name.upper()}: FITTING")
         time_fit_beg = time.perf_counter()
@@ -68,7 +65,22 @@ if __name__ == "__main__":
         time_fit_end = time.perf_counter()
         time_fit_dataset = time_fit_end - time_fit_beg
 
-        model.save(str(directory_results / f"{identifier}.keras"))
+        print(f"{model.name.upper()}: PREDICTING")
+        time_predict_beg = time.perf_counter()
+        y_test = model.predict(x=dl_test, verbose=1)
+        time_predict_end = time.perf_counter()
+        time_predict_dataset = time_predict_end - time_predict_beg
 
-        info.loc[index] = [identifier, name, time_fit_dataset, length_train, length_val]
-        info.to_csv(str(directory_results / "info.csv"), index=False)
+        model.save(str(directory_results / f"{backbone}_{identifier}.keras"))
+
+        data = {
+            "Backbone": backbone,
+            "Identifier": identifier,
+            "Fit Time": time_fit_dataset,
+            "Predict Time": time_predict_dataset,
+        }
+        data = pandas.DataFrame([data])
+
+        info = pandas.concat([info, data], ignore_index=True)
+        info.sort_values("Backbone", ignore_index=True, inplace=True)
+        info.to_excel(str(directory_results / "info.xlsx"), index=False)

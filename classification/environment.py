@@ -1,7 +1,4 @@
-import architecture
-
-
 IMAGE_SIZE = 512
 BATCH_SIZE = 8
 
-MODELS = architecture.MODELS
+FIGURE_SIZE = 8.5

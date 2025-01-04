@@ -6,7 +6,7 @@ import pathlib
 import tensorflow
 import scipy.optimize
 
-import environment
+import architecture
 import dataset_loader
 
 
@@ -17,7 +17,7 @@ class OptimizedEnsembledModel:
 
         self.models = [
             constructor(image_size, len(labels))
-            for constructor in environment.MODELS
+            for constructor in architecture.MODELS
         ]
 
         self.name = "OEModel"
@@ -42,7 +42,7 @@ class OptimizedEnsembledModel:
             model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=tensorflow.keras.callbacks.EarlyStopping(patience=2, restore_best_weights=True))
 
         losses = numpy.array([
-            float(tensorflow.keras.losses.SparseCategoricalCrossentropy()(y_val, model.predict(x=x_val, verbose=0)))
+            float(architecture.LOSS()(y_val, model.predict(x=x_val, verbose=0)))
             for model in self.models
         ])
 
@@ -69,20 +69,27 @@ class OptimizedEnsembledModel:
         return yp_ensembled
 
 
-    def fit_report(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
-
-        info = pandas.DataFrame(columns=["Identifier", "Backbone", "Fit Time", "Train Samples", "Validation Samples"])
-
-        length_train = x_train.length()
-        length_val = x_val.length()
+    def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
         time_fit_beg = time.perf_counter()
         self.fit(x_train, x_val)
         time_fit_end = time.perf_counter()
         time_fit_dataset = time_fit_end - time_fit_beg
 
-        info.loc[len(info)] = ["0", self.name, time_fit_dataset, length_train, length_val]
-        info.to_csv(str(directory / "info.csv"), index=False)
+        time_predict_beg = time.perf_counter()
+        y_test = self.predict(x_test)
+        time_predict_end = time.perf_counter()
+        time_predict_dataset = time_predict_end - time_predict_beg
+
+        data = {
+            "Backbone": self.name,
+            "Identifier": "",
+            "Fit Time": time_fit_dataset,
+            "Predict Time": time_predict_dataset,
+        }
+
+        info = pandas.DataFrame([data])
+        info.to_excel(str(directory / "info.xlsx"), index=False)
 
 
     def save(self, directory: pathlib.Path) -> None:

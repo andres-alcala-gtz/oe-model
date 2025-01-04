@@ -1,6 +1,10 @@
 import tensorflow
 
 
+LOSS = tensorflow.keras.losses.CategoricalCrossentropy
+METRIC = tensorflow.keras.metrics.CategoricalAccuracy
+
+
 def wrapper(name: str, backbone: tensorflow.keras.Model, image_size: int, num_labels: int) -> tensorflow.keras.Model:
     model = tensorflow.keras.Sequential(name=name, layers=[
         tensorflow.keras.layers.InputLayer(input_shape=(None, None, 3)),
@@ -15,8 +19,8 @@ def wrapper(name: str, backbone: tensorflow.keras.Model, image_size: int, num_la
     ])
     model.compile(
         optimizer="adam",
-        loss=tensorflow.keras.losses.SparseCategoricalCrossentropy(),
-        metrics=tensorflow.keras.metrics.SparseCategoricalAccuracy(),
+        loss=LOSS(),
+        metrics=METRIC(),
     )
     return model
 

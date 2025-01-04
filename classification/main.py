@@ -13,22 +13,23 @@ if __name__ == "__main__":
 
     IMAGE_SIZE = environment.IMAGE_SIZE
     BATCH_SIZE = environment.BATCH_SIZE
+    FIGURE_SIZE = environment.FIGURE_SIZE
 
 
-    directory_dataset = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+    directory_template = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
-    directory_dataset = pathlib.Path(directory_dataset)
-    directory_results = pathlib.Path(f"{directory_dataset} - Model")
+    directory_dataset = pathlib.Path(directory_template)
+    directory_results = pathlib.Path(f"{directory_template} - Model")
 
 
     if not directory_results.exists():
 
         directory_results.mkdir()
 
-        dl_train, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
-        model.fit_report(directory_results, dl_train, dl_val)
+        model.fit_predict_evaluation(directory_results, dl_train, dl_test, dl_val)
         model.save(directory_results)
 
     else:
