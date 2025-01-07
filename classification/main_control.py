@@ -6,6 +6,7 @@ import pathlib
 import tensorflow
 import collections
 
+import benchmark
 import environment
 import architecture
 import dataset_loader
@@ -36,9 +37,6 @@ if __name__ == "__main__":
         info = pandas.read_excel(str(directory_results / "info.xlsx"))
 
 
-    _, _, _, _, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
-
-
     constructors = {
         constructor.__name__: constructor
         for constructor in architecture.MODELS
@@ -52,7 +50,7 @@ if __name__ == "__main__":
 
         print(f"\nMODEL {len(info) + 1}")
 
-        dl_train, dl_test, dl_val, _, _ = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_test, dl_val, _, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
 
         backbone = min(counter, key=counter.get)
         identifier = str(uuid.uuid4())
@@ -73,12 +71,7 @@ if __name__ == "__main__":
 
         model.save(str(directory_results / f"{backbone}_{identifier}.keras"))
 
-        data = {
-            "Backbone": backbone,
-            "Identifier": identifier,
-            "Fit Time": time_fit_dataset,
-            "Predict Time": time_predict_dataset,
-        }
+        data = benchmark.evaluation(directory_results, backbone, identifier, time_fit_dataset, time_predict_dataset, y_test, dl_train, dl_test, dl_val, labels, FIGURE_SIZE)
         data = pandas.DataFrame([data])
 
         info = pandas.concat([info, data], ignore_index=True)

@@ -1,6 +1,23 @@
 import tensorflow
 
 
+EVALUATORS_CATEGORICAL = [
+    tensorflow.keras.losses.CategoricalCrossentropy,
+    tensorflow.keras.metrics.CategoricalAccuracy,
+    tensorflow.keras.metrics.AUC,
+]
+
+EVALUATORS_NUMERICAL = [
+    tensorflow.keras.metrics.Accuracy,
+    tensorflow.keras.metrics.Precision,
+    tensorflow.keras.metrics.Recall,
+    tensorflow.keras.metrics.FalseNegatives,
+    tensorflow.keras.metrics.FalsePositives,
+    tensorflow.keras.metrics.TrueNegatives,
+    tensorflow.keras.metrics.TruePositives,
+]
+
+
 LOSS = tensorflow.keras.losses.CategoricalCrossentropy
 METRIC = tensorflow.keras.metrics.CategoricalAccuracy
 

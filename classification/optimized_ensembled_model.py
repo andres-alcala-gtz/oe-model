@@ -6,6 +6,7 @@ import pathlib
 import tensorflow
 import scipy.optimize
 
+import benchmark
 import architecture
 import dataset_loader
 
@@ -69,7 +70,7 @@ class OptimizedEnsembledModel:
         return yp_ensembled
 
 
-    def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
+    def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader, figure_size: float) -> None:
 
         time_fit_beg = time.perf_counter()
         self.fit(x_train, x_val)
@@ -81,12 +82,7 @@ class OptimizedEnsembledModel:
         time_predict_end = time.perf_counter()
         time_predict_dataset = time_predict_end - time_predict_beg
 
-        data = {
-            "Backbone": self.name,
-            "Identifier": "",
-            "Fit Time": time_fit_dataset,
-            "Predict Time": time_predict_dataset,
-        }
+        data = benchmark.evaluation(directory, self.name, "", time_fit_dataset, time_predict_dataset, y_test, x_train, x_test, x_val, self.labels, figure_size)
 
         info = pandas.DataFrame([data])
         info.to_excel(str(directory / "info.xlsx"), index=False)
