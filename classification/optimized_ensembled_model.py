@@ -33,9 +33,6 @@ class OptimizedEnsembledModel:
     def fit(self, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
         y_val = x_val.y()
-        axes = [numpy.linspace(0.20, 0.80, 100)] * self.num_models
-        coordinates = numpy.array(numpy.meshgrid(*axes)).reshape(self.num_models, -1).T
-        hyperplane = coordinates[coordinates.sum(axis=1) == 1.00]
 
         print("\nFITTING")
         for model in self.models:
@@ -48,21 +45,23 @@ class OptimizedEnsembledModel:
         ])
 
         print("\nOPTIMIZING")
-        objective_function = lambda index: numpy.dot(losses, hyperplane[int(index[0])]) / self.num_models
-        optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=[(0, len(hyperplane) - 1)], strategy="rand1bin", disp=True)
-        self.weights = hyperplane[int(optimization.x[0])]
+        objective_function = lambda weights: numpy.dot(losses, weights) / self.num_models
+        bounds = [(0.2, 0.8)] * self.num_models
+        constraints = [scipy.optimize.LinearConstraint(A=numpy.ones((1, self.num_models)), lb=1.0, ub=1.0)]
+        optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=bounds, constraints=constraints, strategy="best1bin", disp=True)
+        self.weights = optimization.x
 
 
     def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray[int], verbose=None) -> numpy.ndarray[float]:
 
-        yp_raw = [
+        yp_simple = [
             model.predict(x=x, verbose=0)
             for model in self.models
         ]
 
         yp_weighted = [
             weight * yp
-            for weight, yp in zip(self.weights, yp_raw)
+            for weight, yp in zip(self.weights, yp_simple)
         ]
 
         yp_ensembled = numpy.sum(yp_weighted, axis=0)
@@ -72,19 +71,19 @@ class OptimizedEnsembledModel:
 
     def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader, figure_size: float) -> None:
 
-        time_fit_beg = time.perf_counter()
+        info = []
+
         self.fit(x_train, x_val)
-        time_fit_end = time.perf_counter()
-        time_fit_dataset = time_fit_end - time_fit_beg
 
-        time_predict_beg = time.perf_counter()
-        y_test = self.predict(x_test)
-        time_predict_end = time.perf_counter()
-        time_predict_dataset = time_predict_end - time_predict_beg
+        for model in [self] + self.models:
+            time_predict_beg = time.perf_counter()
+            y_test = model.predict(x_test, verbose=0)
+            time_predict_end = time.perf_counter()
+            time_predict_dataset = time_predict_end - time_predict_beg
+            data = benchmark.evaluation(directory, model.name, time_predict_dataset, y_test, x_train, x_test, x_val, self.labels, figure_size)
+            info.append(data)
 
-        data = benchmark.evaluation(directory, self.name, "", time_fit_dataset, time_predict_dataset, y_test, x_train, x_test, x_val, self.labels, figure_size)
-
-        info = pandas.DataFrame([data])
+        info = pandas.DataFrame(info)
         info.to_excel(str(directory / "info.xlsx"), index=False)
 
 
