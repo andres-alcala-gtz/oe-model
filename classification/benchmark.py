@@ -81,10 +81,12 @@ def information_plot(directory: pathlib.Path, information: pandas.DataFrame, fig
 
     figure.suptitle(title)
 
-    for backbone, group in information.groupby("Backbone"):
-        x = range(len(group))
+    markers = ["o", "s", "p", "*", "H", "X", "D"]
+
+    for marker, (backbone, group) in zip(markers, information.groupby("Backbone")):
+        x = range(1, len(group) + 1)
         y = group[title]
-        axes.plot(x, y, marker="o", linestyle="--", label=backbone)
+        axes.plot(x, y, marker=marker, linestyle="--", label=backbone)
 
     models_experimental = information[information["Backbone"] == "OEModel"][title]
     models_control = information[information["Backbone"] != "OEModel"][title]

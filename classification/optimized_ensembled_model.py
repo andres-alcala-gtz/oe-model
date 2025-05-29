@@ -37,7 +37,7 @@ class OptimizedEnsembledModel:
         print("\nFITTING")
         for model in self.models:
             print(f"{model.name.upper()}: TRAINING")
-            model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=tensorflow.keras.callbacks.EarlyStopping(patience=2, restore_best_weights=True))
+            model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=[tensorflow.keras.callbacks.ReduceLROnPlateau(patience=2), tensorflow.keras.callbacks.EarlyStopping(patience=4, restore_best_weights=True)])
 
         losses = numpy.array([
             float(architecture.LOSS()(y_val, model.predict(x=x_val, verbose=0)))
