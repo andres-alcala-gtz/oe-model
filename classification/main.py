@@ -14,27 +14,28 @@ if __name__ == "__main__":
     IMAGE_SIZE = environment.IMAGE_SIZE
     BATCH_SIZE = environment.BATCH_SIZE
     FIGURE_SIZE = environment.FIGURE_SIZE
+    DATA_AUGMENTATION = environment.DATA_AUGMENTATION
 
 
     directory_template = click.prompt("Dataset Directory", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 
     directory_dataset = pathlib.Path(directory_template)
-    directory_results = pathlib.Path(f"{directory_template} - Model")
+    directory_model = pathlib.Path(f"{directory_template} - Model")
 
 
-    if not directory_results.exists():
+    if not directory_model.exists():
 
-        directory_results.mkdir()
+        directory_model.mkdir()
 
-        dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE)
+        dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE, DATA_AUGMENTATION)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
-        model.fit_predict_evaluation(directory_results, dl_train, dl_test, dl_val, FIGURE_SIZE)
-        model.save(directory_results)
+        model.fit_predict_evaluation(directory_model, dl_train, dl_test, dl_val, FIGURE_SIZE)
+        model.save(directory_model)
 
     else:
 
-        model = optimized_ensembled_model.OptimizedEnsembledModel.load(directory_results)
+        model = optimized_ensembled_model.OptimizedEnsembledModel.load(directory_model)
 
 
     title = model.title
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             y = model.predict(x)[0]
             return {label: probability for label, probability in zip(labels, y)}
         else:
-            return {"", 0.0}
+            return {"": 0.0}
 
     interface = gradio.Interface(
         title=title,
@@ -58,4 +59,6 @@ if __name__ == "__main__":
     print("\nLAUNCHING")
     interface.launch(
         share=True,
+        server_name="0.0.0.0",
+        server_port=7860,
     )
