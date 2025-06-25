@@ -32,30 +32,35 @@ class OptimizedEnsembledModel:
 
     def fit(self, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
-        y_val = x_val.y()
-
         print("\nFITTING")
         for model in self.models:
             print(f"{model.name.upper()}: TRAINING")
             model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=[tensorflow.keras.callbacks.ReduceLROnPlateau(patience=2), tensorflow.keras.callbacks.EarlyStopping(patience=4, restore_best_weights=True)])
 
+        y_val = x_val.y()
+        loss = architecture.LOSS()
+
         losses = numpy.array([
-            float(architecture.LOSS()(y_val, model.predict(x=x_val, verbose=0)))
+            float(loss(y_val, model.predict(x=x_val, verbose=0)))
             for model in self.models
         ])
 
+        def objective_function(x: numpy.ndarray) -> float:
+            return numpy.dot(losses, x)
+
         print("\nOPTIMIZING")
-        objective_function = lambda weights: numpy.dot(losses, weights) / self.num_models
-        bounds = [(0.2, 0.8)] * self.num_models
-        constraints = [scipy.optimize.LinearConstraint(A=numpy.ones((1, self.num_models)), lb=1.0, ub=1.0)]
+        matrix = numpy.ones((1, self.num_models))
+        bounds = [(0.1, 0.9)] * (self.num_models)
+        constraints = [scipy.optimize.LinearConstraint(A=matrix, lb=1.0, ub=1.0)]
         optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=bounds, constraints=constraints, strategy="best1bin", disp=True)
         self.weights = optimization.x
+        print(f"weights={self.weights}")
 
 
-    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray[int], verbose=None) -> numpy.ndarray[float]:
+    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
 
         yp_simple = [
-            model.predict(x=x, verbose=0)
+            model.predict(x=x, verbose=verbose)
             for model in self.models
         ]
 
@@ -119,7 +124,7 @@ class OptimizedEnsembledModel:
         models = []
         for name in data["models"]:
             path = str(directory / name)
-            model = tensorflow.keras.models.load_model(path)
+            model = tensorflow.keras.models.load_model(path, compile=False)
             models.append(model)
 
         oem = cls(data["title"], data["labels"], data["image_size"])

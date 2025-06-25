@@ -28,7 +28,7 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
         return math.ceil(len(self.xl_set) / self.batch_size)
 
 
-    def _augment(self, image: numpy.ndarray[int]) -> numpy.ndarray[int]:
+    def _augment(self, image: numpy.ndarray) -> numpy.ndarray:
 
         x = image
 
@@ -52,7 +52,7 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
         return x
 
 
-    def __getitem__(self, index: int) -> tuple[numpy.ndarray[int], numpy.ndarray[int]]:
+    def __getitem__(self, index: int) -> tuple[numpy.ndarray, numpy.ndarray]:
 
         index_beg = index * self.batch_size
         index_end = min(index_beg + self.batch_size, len(self.xl_set))
@@ -88,7 +88,7 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
         return len(self.xl_set)
 
 
-    def y(self) -> numpy.ndarray[int]:
+    def y(self) -> numpy.ndarray:
 
         y_array = []
 
@@ -113,8 +113,8 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
                 xl_all.append(location)
                 yl_all.append(location.parent.stem)
 
-        xl_train, xl_temp, yl_train, yl_temp = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.80, stratify=yl_all)
-        xl_test, xl_val, yl_test, yl_val = sklearn.model_selection.train_test_split(xl_temp, yl_temp, train_size=0.50, stratify=yl_temp)
+        xl_train, xl_temp, yl_train, yl_temp = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.8, stratify=yl_all)
+        xl_test, xl_val, yl_test, yl_val = sklearn.model_selection.train_test_split(xl_temp, yl_temp, train_size=0.5, stratify=yl_temp)
 
         title = directory.stem
         labels = sorted(set(yl_all))

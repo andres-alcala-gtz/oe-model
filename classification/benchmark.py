@@ -10,7 +10,7 @@ import architecture
 import dataset_loader
 
 
-def roc_curve(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray[float], y_pred: numpy.ndarray[float], labels: list[str], figure_size: float) -> None:
+def roc_curve(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray, y_pred: numpy.ndarray, labels: list[str], figure_size: float) -> None:
 
     figure, axes = matplotlib.pyplot.subplots(nrows=1, ncols=1, figsize=(figure_size, figure_size))
 
@@ -22,7 +22,7 @@ def roc_curve(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray[floa
     figure.savefig(str(directory / f"{backbone}_RocCurve.png"))
 
 
-def confusion_matrix(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray[float], y_pred: numpy.ndarray[float], labels: list[str], figure_size: float) -> None:
+def confusion_matrix(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray, y_pred: numpy.ndarray, labels: list[str], figure_size: float) -> None:
 
     figure, axes = matplotlib.pyplot.subplots(nrows=1, ncols=2, figsize=(2 * figure_size, figure_size))
 
@@ -34,7 +34,7 @@ def confusion_matrix(directory: pathlib.Path, backbone: str, y_true: numpy.ndarr
     figure.savefig(str(directory / f"{backbone}_ConfusionMatrix.png"))
 
 
-def evaluation(directory: pathlib.Path, backbone: str, time_predict: float, yp_test: numpy.ndarray[float], xt_train: dataset_loader.DatasetLoader, xt_test: dataset_loader.DatasetLoader, xt_val: dataset_loader.DatasetLoader, labels: list[str], figure_size: float) -> dict[str, str | float]:
+def evaluation(directory: pathlib.Path, backbone: str, time_predict: float, yp_test: numpy.ndarray, xt_train: dataset_loader.DatasetLoader, xt_test: dataset_loader.DatasetLoader, xt_val: dataset_loader.DatasetLoader, labels: list[str], figure_size: float) -> dict[str, str | float]:
 
     yt_categorical = xt_test.y()
     yt_numerical = numpy.argmax(yt_categorical, axis=1)

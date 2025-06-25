@@ -27,6 +27,9 @@ if __name__ == "__main__":
 
         directory_model.mkdir()
 
+
+    if not any(directory_model.glob("*")):
+
         dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE, DATA_AUGMENTATION)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
@@ -41,19 +44,16 @@ if __name__ == "__main__":
     title = model.title
     labels = model.labels
 
-    def predict(image: numpy.ndarray[int]) -> dict[str, float]:
-        if image is not None:
-            x = numpy.expand_dims(image, axis=0)
-            y = model.predict(x)[0]
-            return {label: probability for label, probability in zip(labels, y)}
-        else:
-            return {"": 0.0}
+    def predict(image: numpy.ndarray) -> dict[str, float]:
+        x = numpy.expand_dims(image, axis=0)
+        y = model.predict(x)
+        return {label: probability for label, probability in zip(labels, y[0])}
 
     interface = gradio.Interface(
         title=title,
         fn=predict,
-        inputs=gradio.Image(),
-        outputs=gradio.Label(),
+        inputs=[gradio.Image(label="Image")],
+        outputs=[gradio.Label(label="Probability")],
     )
 
     print("\nLAUNCHING")
