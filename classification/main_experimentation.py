@@ -1,8 +1,8 @@
-import re
 import click
 import pandas
 import pathlib
 
+import regexp
 import benchmark
 import environment
 import dataset_loader
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     for experiment in directory_experimentation.glob("*"):
         if any(experiment.glob("*")):
-            index = int(re.search(r"\d+", experiment.stem).group())
+            index = regexp.fetch_number(experiment.stem)
             indexes_finished.append(index)
         else:
             experiment.rmdir()
@@ -62,16 +62,16 @@ if __name__ == "__main__":
         model.save(directory_experiment)
 
 
+    info = [
+        pandas.read_excel(str(experiment / "info.xlsx"))
+        for experiment in sorted(directory_experimentation.glob("*"), key=lambda path: regexp.fetch_number(path.stem))
+    ]
+
+
     if not directory_results.exists():
 
         directory_results.mkdir()
 
-
-    info = [
-        pandas.read_excel(str(experiment / "info.xlsx"))
-        for experiment in directory_experimentation.glob("*")
-        if any(experiment.glob("*"))
-    ]
 
     info = pandas.concat(info, ignore_index=True)
     info.to_excel(str(directory_results / "info.xlsx"), index=False)

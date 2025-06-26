@@ -1,4 +1,3 @@
-import re
 import numpy
 import pandas
 import pathlib
@@ -6,6 +5,7 @@ import scipy.stats
 import sklearn.metrics
 import matplotlib.pyplot
 
+import regexp
 import architecture
 import dataset_loader
 
@@ -57,13 +57,13 @@ def evaluation(directory: pathlib.Path, backbone: str, time_predict: float, yp_t
 
     for constructor in architecture.EVALUATORS_CATEGORICAL:
         evaluator = constructor()
-        title = re.sub(r"([a-z])([A-Z])", r"\1 \2", constructor.__name__)
+        title = regexp.space_pascal_case(constructor.__name__)
         score = float(evaluator(yt_categorical, yp_categorical))
         data[title] = score
 
     for constructor in architecture.EVALUATORS_NUMERICAL:
         evaluator = constructor()
-        title = re.sub(r"([a-z])([A-Z])", r"\1 \2", constructor.__name__)
+        title = regexp.space_pascal_case(constructor.__name__)
         score = float(evaluator(yt_numerical, yp_numerical))
         data[title] = score
 

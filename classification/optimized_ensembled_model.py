@@ -30,6 +30,23 @@ class OptimizedEnsembledModel:
         self.weights = numpy.ones(self.num_models) / self.num_models
 
 
+    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
+
+        yp_simple = [
+            model.predict(x=x, verbose=verbose)
+            for model in self.models
+        ]
+
+        yp_weighted = [
+            weight * yp
+            for weight, yp in zip(self.weights, yp_simple)
+        ]
+
+        yp_ensembled = numpy.sum(yp_weighted, axis=0)
+
+        return yp_ensembled
+
+
     def fit(self, x_train: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
         print("\nFITTING")
@@ -55,23 +72,6 @@ class OptimizedEnsembledModel:
         optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=bounds, constraints=constraints, strategy="best1bin", disp=True)
         self.weights = optimization.x
         print(f"weights={self.weights}")
-
-
-    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
-
-        yp_simple = [
-            model.predict(x=x, verbose=verbose)
-            for model in self.models
-        ]
-
-        yp_weighted = [
-            weight * yp
-            for weight, yp in zip(self.weights, yp_simple)
-        ]
-
-        yp_ensembled = numpy.sum(yp_weighted, axis=0)
-
-        return yp_ensembled
 
 
     def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader, figure_size: float) -> None:
