@@ -27,7 +27,7 @@ class OptimizedEnsembledModel:
         self.image_size = image_size
 
         self.num_models = len(self.models)
-        self.weights = numpy.ones(self.num_models) / self.num_models
+        self.weights = [1.0 / self.num_models] * self.num_models
 
 
     def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
@@ -63,14 +63,15 @@ class OptimizedEnsembledModel:
         ])
 
         def objective_function(x: numpy.ndarray) -> float:
-            return numpy.dot(losses, x)
+            weights = x.tolist()
+            return numpy.dot(losses, weights)
 
         print("\nOPTIMIZING")
-        matrix = numpy.ones((1, self.num_models))
+        matrix = [([1.0] * self.num_models)]
         bounds = [(0.1, 0.9)] * (self.num_models)
         constraints = [scipy.optimize.LinearConstraint(A=matrix, lb=1.0, ub=1.0)]
         optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=bounds, constraints=constraints, strategy="best1bin", disp=True)
-        self.weights = optimization.x
+        self.weights = optimization.x.tolist()
         print(f"weights={self.weights}")
 
 
@@ -108,7 +109,7 @@ class OptimizedEnsembledModel:
             "labels": self.labels,
             "image_size": self.image_size,
             "num_models": self.num_models,
-            "weights": list(self.weights),
+            "weights": self.weights,
         }
 
         with open(str(directory / "data.json"), mode="w") as file:
@@ -131,6 +132,6 @@ class OptimizedEnsembledModel:
         oem.models = models
         oem.name = data["name"]
         oem.num_models = data["num_models"]
-        oem.weights = numpy.array(data["weights"])
+        oem.weights = data["weights"]
 
         return oem
