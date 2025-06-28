@@ -30,19 +30,38 @@ class OptimizedEnsembledModel:
         self.weights = [1.0 / self.num_models] * self.num_models
 
 
-    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
+    def _predict_simple(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose: int) -> list[numpy.ndarray]:
 
         yp_simple = [
             model.predict(x=x, verbose=verbose)
             for model in self.models
         ]
 
+        return yp_simple
+
+
+    def _predict_weighted(self, yp_simple: list[numpy.ndarray], weights: list[float]) -> list[numpy.ndarray]:
+
         yp_weighted = [
             weight * yp
-            for weight, yp in zip(self.weights, yp_simple)
+            for weight, yp in zip(weights, yp_simple)
         ]
 
+        return yp_weighted
+
+
+    def _predict_ensembled(self, yp_weighted: list[numpy.ndarray]) -> numpy.ndarray:
+
         yp_ensembled = numpy.sum(yp_weighted, axis=0)
+
+        return yp_ensembled
+
+
+    def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
+
+        yp_simple = self._predict_simple(x, verbose)
+        yp_weighted = self._predict_weighted(yp_simple, self.weights)
+        yp_ensembled = self._predict_ensembled(yp_weighted)
 
         return yp_ensembled
 
@@ -55,16 +74,15 @@ class OptimizedEnsembledModel:
             model.fit(x=x_train, validation_data=x_val, epochs=100, verbose=1, callbacks=[tensorflow.keras.callbacks.ReduceLROnPlateau(patience=2), tensorflow.keras.callbacks.EarlyStopping(patience=4, restore_best_weights=True)])
 
         y_val = x_val.y()
+        yp_simple = self._predict_simple(x_val, 0)
         loss = architecture.LOSS()
-
-        losses = numpy.array([
-            float(loss(y_val, model.predict(x=x_val, verbose=0)))
-            for model in self.models
-        ])
 
         def objective_function(x: numpy.ndarray) -> float:
             weights = x.tolist()
-            return numpy.dot(losses, weights)
+            yp_weighted = self._predict_weighted(yp_simple, weights)
+            yp_ensembled = self._predict_ensembled(yp_weighted)
+            loss_ensembled = float(loss(y_val, yp_ensembled))
+            return loss_ensembled
 
         print("\nOPTIMIZING")
         matrix = [([1.0] * self.num_models)]
