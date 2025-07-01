@@ -1,22 +1,18 @@
-# Optimized Ensembled Model - Classification
+# Optimized Ensembled Model - Segmentation
 
 
 ## 1. Preparing the dataset
 
-Place the dataset within the `classification/` directory following the structure outlined below:
+Place the dataset within the `segmentation/` directory following the structure outlined below:
 
 ```text
-classification/
+segmentation/
 └─ dataset/
-   ├─ label_1/
+   ├─ Images/
    │  ├─ image_1.png
    │  ├─ image_2.jpg
    │  └─ image_n.png
-   ├─ label_2/
-   │  ├─ image_1.png
-   │  ├─ image_2.jpg
-   │  └─ image_n.png
-   └─ label_n/
+   └─ Masks/
       ├─ image_1.png
       ├─ image_2.jpg
       └─ image_n.png
@@ -29,7 +25,7 @@ Modify the `environment.py` file as required. The default configuration is as fo
 
 ```python
 IMAGE_SIZE = 512
-BATCH_SIZE = 16
+BATCH_SIZE = 2
 EXPERIMENT_RUNS = 10
 FIGURE_SIZE = 8.5
 DATA_AUGMENTATION = True
@@ -41,7 +37,7 @@ DATA_AUGMENTATION = True
 Navigate to the project directory:
 
 ```bash
-cd classification
+cd segmentation
 ```
 
 
@@ -50,7 +46,7 @@ cd classification
 Build the docker image with the following command:
 
 ```bash
-docker build -t classification .
+docker build -t segmentation .
 ```
 
 
@@ -59,7 +55,7 @@ docker build -t classification .
 Run the container using:
 
 ```bash
-docker run -it --rm --gpus all -v "$(pwd):/usr/local/app" -p 7860:7860 classification
+docker run -it --rm --gpus all -v "$(pwd):/usr/local/app" -p 7860:7860 segmentation
 ```
 
 

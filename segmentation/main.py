@@ -13,7 +13,6 @@ if __name__ == "__main__":
 
     IMAGE_SIZE = environment.IMAGE_SIZE
     BATCH_SIZE = environment.BATCH_SIZE
-    FIGURE_SIZE = environment.FIGURE_SIZE
     DATA_AUGMENTATION = environment.DATA_AUGMENTATION
 
 
@@ -33,7 +32,7 @@ if __name__ == "__main__":
         dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE, DATA_AUGMENTATION)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
-        model.fit_predict_evaluation(directory_model, dl_train, dl_test, dl_val, FIGURE_SIZE)
+        model.fit_predict_evaluation(directory_model, dl_train, dl_test, dl_val)
         model.save(directory_model)
 
     else:
@@ -42,18 +41,17 @@ if __name__ == "__main__":
 
 
     title = model.title
-    labels = model.labels
 
-    def predict(image: numpy.ndarray) -> dict[str, float]:
+    def predict(image: numpy.ndarray, probability: bool) -> numpy.ndarray:
         x = numpy.expand_dims(image, axis=0)
-        y = model.predict(x)
-        return {label: probability for label, probability in zip(labels, y[0])}
+        y = model.predict(x) if not probability else model.predict_probability(x)
+        return y[0, :, :, -1]
 
     interface = gradio.Interface(
         title=title,
         fn=predict,
-        inputs=[gradio.Image(label="Image")],
-        outputs=[gradio.Label(label="Probability")],
+        inputs=[gradio.Image(label="Image"), gradio.Checkbox(label="Probability")],
+        outputs=[gradio.Image(label="Mask")],
     )
 
     print("\nLAUNCHING")

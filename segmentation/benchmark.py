@@ -2,7 +2,6 @@ import numpy
 import pandas
 import pathlib
 import scipy.stats
-import sklearn.metrics
 import matplotlib.pyplot
 
 import regexp
@@ -10,37 +9,11 @@ import architecture
 import dataset_loader
 
 
-def roc_curve(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray, y_pred: numpy.ndarray, labels: list[str], figure_size: float) -> None:
+def evaluation(backbone: str, time_predict: float, yp_test: numpy.ndarray, xt_train: dataset_loader.DatasetLoader, xt_test: dataset_loader.DatasetLoader, xt_val: dataset_loader.DatasetLoader) -> dict[str, str | float]:
 
-    figure, axes = matplotlib.pyplot.subplots(nrows=1, ncols=1, figsize=(figure_size, figure_size))
+    yt = xt_test.y()
 
-    figure.suptitle(backbone)
-
-    for index in range(len(labels)):
-        sklearn.metrics.RocCurveDisplay.from_predictions(y_true[:, index], y_pred[:, index], name=labels[index], ax=axes)
-
-    figure.savefig(str(directory / f"{backbone}_RocCurve.png"))
-
-
-def confusion_matrix(directory: pathlib.Path, backbone: str, y_true: numpy.ndarray, y_pred: numpy.ndarray, labels: list[str], figure_size: float) -> None:
-
-    figure, axes = matplotlib.pyplot.subplots(nrows=1, ncols=2, figsize=(2 * figure_size, figure_size))
-
-    figure.suptitle(backbone)
-
-    sklearn.metrics.ConfusionMatrixDisplay.from_predictions(y_true, y_pred, normalize=None, values_format=None, display_labels=labels, cmap="Blues", colorbar=False, ax=axes[0])
-    sklearn.metrics.ConfusionMatrixDisplay.from_predictions(y_true, y_pred, normalize="true", values_format=".0%", display_labels=labels, cmap="Blues", colorbar=False, ax=axes[1])
-
-    figure.savefig(str(directory / f"{backbone}_ConfusionMatrix.png"))
-
-
-def evaluation(directory: pathlib.Path, backbone: str, time_predict: float, yp_test: numpy.ndarray, xt_train: dataset_loader.DatasetLoader, xt_test: dataset_loader.DatasetLoader, xt_val: dataset_loader.DatasetLoader, labels: list[str], figure_size: float) -> dict[str, str | float]:
-
-    yt_categorical = xt_test.y()
-    yt_numerical = numpy.argmax(yt_categorical, axis=1)
-
-    yp_categorical = yp_test
-    yp_numerical = numpy.argmax(yp_categorical, axis=1)
+    yp = yp_test
 
     length_train = xt_train.length()
     length_test = xt_test.length()
@@ -55,20 +28,11 @@ def evaluation(directory: pathlib.Path, backbone: str, time_predict: float, yp_t
     data["Predict Time"] = time_predict
     data["Predict Time Per Sample"] = time_predict / length_test
 
-    for constructor in architecture.EVALUATORS_CATEGORICAL:
+    for constructor in architecture.EVALUATORS:
         evaluator = constructor()
         title = regexp.space_pascal_case(constructor.__name__)
-        score = float(evaluator(yt_categorical, yp_categorical))
+        score = float(evaluator(yt, yp))
         data[title] = score
-
-    for constructor in architecture.EVALUATORS_NUMERICAL:
-        evaluator = constructor()
-        title = regexp.space_pascal_case(constructor.__name__)
-        score = float(evaluator(yt_numerical, yp_numerical))
-        data[title] = score
-
-    roc_curve(directory, backbone, yt_categorical, yp_categorical, labels, figure_size)
-    confusion_matrix(directory, backbone, yt_numerical, yp_numerical, labels, figure_size)
 
     return data
 

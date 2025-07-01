@@ -4,7 +4,7 @@
 IMAGE_SIZE = 512
 
 # Number of samples per training batch
-BATCH_SIZE = 16
+BATCH_SIZE = 2
 
 # Number of times to repeat the experiment
 EXPERIMENT_RUNS = 10

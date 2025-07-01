@@ -14,10 +14,10 @@ import dataset_loader
 class OptimizedEnsembledModel:
 
 
-    def __init__(self, title: str, labels: list[str], image_size: int) -> None:
+    def __init__(self, title: str, labels: list[int], image_size: int) -> None:
 
         self.models = [
-            constructor(image_size, len(labels))
+            constructor(len(labels))
             for constructor in architecture.MODELS
         ]
 
@@ -28,6 +28,7 @@ class OptimizedEnsembledModel:
 
         self.num_models = len(self.models)
         self.weights = [1.0 / self.num_models] * self.num_models
+        self.threshold = 0.5
 
 
     def _predict_simple(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose: int) -> list[numpy.ndarray]:
@@ -57,7 +58,24 @@ class OptimizedEnsembledModel:
         return yp_ensembled
 
 
+    def _predict_thresholded(self, yp_ensembled: numpy.ndarray, threshold: float) -> numpy.ndarray:
+
+        yp_thresholded = (yp_ensembled > threshold).astype(numpy.float32)
+
+        return yp_thresholded
+
+
     def predict(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
+
+        yp_simple = self._predict_simple(x, verbose)
+        yp_weighted = self._predict_weighted(yp_simple, self.weights)
+        yp_ensembled = self._predict_ensembled(yp_weighted)
+        yp_thresholded = self._predict_thresholded(yp_ensembled, self.threshold)
+
+        return yp_thresholded
+
+
+    def predict_probability(self, x: dataset_loader.DatasetLoader | numpy.ndarray, verbose=0) -> numpy.ndarray:
 
         yp_simple = self._predict_simple(x, verbose)
         yp_weighted = self._predict_weighted(yp_simple, self.weights)
@@ -78,22 +96,23 @@ class OptimizedEnsembledModel:
         loss = architecture.LOSS()
 
         def objective_function(x: numpy.ndarray) -> float:
-            weights = x.tolist()
+            *weights, threshold = x.tolist()
             yp_weighted = self._predict_weighted(yp_simple, weights)
             yp_ensembled = self._predict_ensembled(yp_weighted)
-            loss_ensembled = float(loss(y_val, yp_ensembled))
+            yp_thresholded = self._predict_thresholded(yp_ensembled, threshold)
+            loss_ensembled = float(loss(y_val, yp_thresholded))
             return loss_ensembled
 
         print("\nOPTIMIZING")
-        matrix = [([1.0] * self.num_models)]
-        bounds = [(0.1, 0.9)] * (self.num_models)
+        matrix = [([1.0] * self.num_models) + ([0.0])]
+        bounds = [(0.1, 0.9)] * (self.num_models + 1)
         constraints = [scipy.optimize.LinearConstraint(A=matrix, lb=1.0, ub=1.0)]
         optimization = scipy.optimize.differential_evolution(func=objective_function, bounds=bounds, constraints=constraints, strategy="best1bin", disp=True)
-        self.weights = optimization.x.tolist()
-        print(f"weights={self.weights}")
+        *self.weights, self.threshold = optimization.x.tolist()
+        print(f"weights={self.weights}, threshold={self.threshold}")
 
 
-    def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader, figure_size: float) -> None:
+    def fit_predict_evaluation(self, directory: pathlib.Path, x_train: dataset_loader.DatasetLoader, x_test: dataset_loader.DatasetLoader, x_val: dataset_loader.DatasetLoader) -> None:
 
         info = []
 
@@ -104,7 +123,7 @@ class OptimizedEnsembledModel:
             y_test = model.predict(x_test, verbose=0)
             time_predict_end = time.perf_counter()
             time_predict_dataset = time_predict_end - time_predict_beg
-            data = benchmark.evaluation(directory, model.name, time_predict_dataset, y_test, x_train, x_test, x_val, self.labels, figure_size)
+            data = benchmark.evaluation(model.name, time_predict_dataset, y_test, x_train, x_test, x_val)
             info.append(data)
 
         info = pandas.DataFrame(info)
@@ -128,6 +147,7 @@ class OptimizedEnsembledModel:
             "image_size": self.image_size,
             "num_models": self.num_models,
             "weights": self.weights,
+            "threshold": self.threshold,
         }
 
         with open(str(directory / "data.json"), mode="w") as file:
@@ -151,5 +171,6 @@ class OptimizedEnsembledModel:
         oem.name = data["name"]
         oem.num_models = data["num_models"]
         oem.weights = data["weights"]
+        oem.threshold = data["threshold"]
 
         return oem

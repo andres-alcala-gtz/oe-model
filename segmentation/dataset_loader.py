@@ -9,7 +9,7 @@ import sklearn.model_selection
 class DatasetLoader(tensorflow.keras.utils.Sequence):
 
 
-    def __init__(self, xl_set: list[pathlib.Path], yl_set: list[str], labels: list[str], image_size: int, batch_size: int, data_augmentation: bool, **kwargs) -> None:
+    def __init__(self, xl_set: list[pathlib.Path], yl_set: list[pathlib.Path], labels: list[int], image_size: int, batch_size: int, data_augmentation: bool, **kwargs) -> None:
 
         super().__init__(**kwargs)
 
@@ -21,6 +21,7 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
         self.data_augmentation = data_augmentation
 
         self.num_labels = len(self.labels)
+        self.label_to_index = {label: index for index, label in enumerate(self.labels)}
 
 
     def __len__(self) -> int:
@@ -28,9 +29,9 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
         return math.ceil(len(self.xl_set) / self.batch_size)
 
 
-    def _augment(self, image: numpy.ndarray) -> numpy.ndarray:
+    def _augment(self, image: numpy.ndarray, mask: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
 
-        x = image
+        x, y = image, mask
 
         if numpy.random.rand() > 0.5:
             random = numpy.random.uniform(-0.1, 0.1)
@@ -48,8 +49,10 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
             random = numpy.random.uniform(0.9, 1.0)
             x = numpy.array(tensorflow.image.central_crop(x, random))
             x = numpy.array(tensorflow.image.resize(x, (self.image_size, self.image_size), "bilinear"))
+            y = numpy.array(tensorflow.image.central_crop(y, random))
+            y = numpy.array(tensorflow.image.resize(y, (self.image_size, self.image_size), "nearest"))
 
-        return x
+        return x, y
 
 
     def __getitem__(self, index: int) -> tuple[numpy.ndarray, numpy.ndarray]:
@@ -68,11 +71,15 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
             x = numpy.array(PIL.Image.open(xl).convert("RGB"))
             x = numpy.array(tensorflow.image.resize(x, (self.image_size, self.image_size), "bilinear"))
 
-            y = self.labels.index(yl)
+            y = numpy.array(PIL.Image.open(yl).convert("L"))
+            y = numpy.array(numpy.expand_dims(y, axis=-1))
+            y = numpy.array(tensorflow.image.resize(y, (self.image_size, self.image_size), "nearest"))
+            y = numpy.array(numpy.squeeze(y, axis=-1))
+            y = numpy.array(numpy.vectorize(self.label_to_index.get)(y))
             y = numpy.array(tensorflow.keras.utils.to_categorical(y, self.num_labels))
 
             if self.data_augmentation:
-                x = self._augment(x)
+                x, y = self._augment(x, y)
 
             x_array.append(x)
             y_array.append(y)
@@ -103,21 +110,25 @@ class DatasetLoader(tensorflow.keras.utils.Sequence):
 
 
     @classmethod
-    def from_directory(cls, directory: pathlib.Path, image_size: int, batch_size: int, data_augmentation: bool) -> tuple["DatasetLoader", "DatasetLoader", "DatasetLoader", str, list[str]]:
+    def from_directory(cls, directory: pathlib.Path, image_size: int, batch_size: int, data_augmentation: bool) -> tuple["DatasetLoader", "DatasetLoader", "DatasetLoader", str, list[int]]:
 
         xl_all = []
         yl_all = []
 
         for location in directory.rglob("*"):
             if location.is_file():
-                xl_all.append(location)
-                yl_all.append(location.parent.stem)
+                if location.parent.stem == "Images":
+                    xl_all.append(location)
+                if location.parent.stem == "Masks":
+                    yl_all.append(location)
 
-        xl_train, xl_temp, yl_train, yl_temp = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.8, stratify=yl_all)
-        xl_test, xl_val, yl_test, yl_val = sklearn.model_selection.train_test_split(xl_temp, yl_temp, train_size=0.5, stratify=yl_temp)
+        xl_train, xl_temp, yl_train, yl_temp = sklearn.model_selection.train_test_split(xl_all, yl_all, train_size=0.8, stratify=None)
+        xl_test, xl_val, yl_test, yl_val = sklearn.model_selection.train_test_split(xl_temp, yl_temp, train_size=0.5, stratify=None)
 
         title = directory.stem
-        labels = sorted(set(yl_all))
+        labels = set()
+        for yl in yl_all: labels.update(numpy.unique(numpy.array(PIL.Image.open(yl).convert("L"))))
+        labels = sorted(map(int, labels))
 
         dl_train = cls(xl_train, yl_train, labels, image_size, batch_size, data_augmentation)
         dl_test = cls(xl_test, yl_test, labels, image_size, batch_size, False)

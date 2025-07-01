@@ -58,7 +58,7 @@ if __name__ == "__main__":
         dl_train, dl_test, dl_val, title, labels = dataset_loader.DatasetLoader.from_directory(directory_dataset, IMAGE_SIZE, BATCH_SIZE, DATA_AUGMENTATION)
 
         model = optimized_ensembled_model.OptimizedEnsembledModel(title, labels, IMAGE_SIZE)
-        model.fit_predict_evaluation(directory_experiment, dl_train, dl_test, dl_val, FIGURE_SIZE)
+        model.fit_predict_evaluation(directory_experiment, dl_train, dl_test, dl_val)
         model.save(directory_experiment)
 
 

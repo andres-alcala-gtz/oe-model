@@ -4,6 +4,6 @@ WORKDIR /usr/local/app
 
 COPY ./ ./
 
-RUN pip install --no-cache-dir click==8.1.7 pandas==2.2.2 openpyxl==3.1.2 matplotlib==3.9.2 scikit-learn==1.5.1 gradio==5.31.0
+RUN pip install --no-cache-dir click==8.1.7 pandas==2.2.2 openpyxl==3.1.2 matplotlib==3.9.2 scikit-learn==1.5.1 gradio==5.31.0 segmentation-models==1.0.1
 
 EXPOSE 7860
