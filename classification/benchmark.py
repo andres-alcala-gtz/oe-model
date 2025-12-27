@@ -88,11 +88,6 @@ def information_plot(directory: pathlib.Path, information: pandas.DataFrame, fig
         y = group[title]
         axes.plot(x, y, marker=marker, linestyle="--", label=backbone)
 
-    models_experimental = information[information["Backbone"] == "OEModel"][title]
-    models_control = information[information["Backbone"] != "OEModel"][title]
-    t_statistic, p_value = scipy.stats.ttest_ind(models_experimental, models_control)
-
-    axes.set_title(f"T-Statistic: {t_statistic:.4f}, P-Value: {p_value:.4f}")
     axes.set_xlabel("Experiment Number")
     axes.set_ylabel("Score")
     axes.grid(True)
@@ -127,6 +122,40 @@ def information_metadata(directory: pathlib.Path, information: pandas.DataFrame)
         metadata.to_excel(writer, sheet_name=title)
 
 
+def information_statistics(directory: pathlib.Path, information: pandas.DataFrame) -> None:
+
+    title = information.columns[-1]
+
+    info = {}
+
+    for backbone, group in information.groupby("Backbone"):
+        info |= {backbone: group[title].tolist()}
+
+    experimental_backbone = "OEModel"
+    experimental_scores = info[experimental_backbone]
+
+    control = {backbone: scores for backbone, scores in info.items() if backbone != experimental_backbone}
+    control |= {"Control": numpy.array(list(control.values())).mean(axis=0).tolist()}
+
+    data = pandas.DataFrame()
+
+    for control_backbone, control_scores in control.items():
+        t_related, p_related = scipy.stats.ttest_rel(experimental_scores, control_scores)
+        w_wilcoxon, p_wilcoxon = scipy.stats.wilcoxon(experimental_scores, control_scores, zero_method="zsplit")
+        data.loc[f"{experimental_backbone} vs {control_backbone}", "Related (t-statistic)"] = t_related
+        data.loc[f"{experimental_backbone} vs {control_backbone}", "Related (p-value)"] = p_related
+        data.loc[f"{experimental_backbone} vs {control_backbone}", "Wilcoxon (w-statistic)"] = w_wilcoxon
+        data.loc[f"{experimental_backbone} vs {control_backbone}", "Wilcoxon (p-value)"] = p_wilcoxon
+
+    path = directory / "statistics.xlsx"
+
+    if not path.exists():
+        pandas.DataFrame([{"Description": "This file contains Related t-test and Wilcoxon signed-rank test results for each evaluation"}]).to_excel(str(path), sheet_name="Introduction", index=False)
+
+    with pandas.ExcelWriter(str(path), mode="a") as writer:
+        data.to_excel(writer, sheet_name=title)
+
+
 def comparison(directory: pathlib.Path, information: pandas.DataFrame, figure_size: float) -> None:
 
     for title in information.columns:
@@ -134,3 +163,4 @@ def comparison(directory: pathlib.Path, information: pandas.DataFrame, figure_si
             info = information[["Backbone", title]]
             information_plot(directory, info, figure_size)
             information_metadata(directory, info)
+            information_statistics(directory, info)
